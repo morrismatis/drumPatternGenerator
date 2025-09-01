@@ -1,0 +1,721 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Drum Pattern Generator</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+            background: #1a1a2e;
+            color: #e0e0e0;
+        }
+        .container {
+            min-height: 100vh;
+        }
+        .card {
+            background: #212543;
+            box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        .input-group label {
+            color: #b0c4de;
+        }
+        .input-group input, .input-group textarea {
+            background: #282c5a;
+            border: 1px solid #3c4172;
+            color: #e0e0e0;
+        }
+        .input-group input:focus, .input-group textarea:focus {
+            border-color: #6a6ee0;
+            box-shadow: 0 0 0 2px rgba(106, 110, 224, 0.5);
+        }
+        .btn {
+            background: #e94560;
+            transition: transform 0.2s, background 0.2s;
+        }
+        .btn:hover {
+            background: #d63150;
+            transform: translateY(-2px);
+        }
+        .btn:disabled {
+            background: #555877;
+            cursor: not-allowed;
+        }
+        .audio-controls {
+            background: #282c5a;
+            border: 1px solid #3c4172;
+        }
+        .icon {
+            font-size: 2rem;
+            color: #b0c4de;
+            transition: color 0.2s;
+        }
+        .icon:hover {
+            color: #e94560;
+        }
+        .progress-bar-container {
+            background: #3c4172;
+        }
+        .progress-bar {
+            background: #e94560;
+            transition: width 0.1s linear;
+        }
+        .grid-visualizer {
+            display: grid;
+            grid-template-columns: repeat(16, 1fr);
+            gap: 4px;
+        }
+        .grid-cell {
+            height: 30px;
+            background: #4a4f8d;
+            border-radius: 4px;
+            transition: background 0.1s;
+        }
+        .grid-cell.active {
+            background: #e94560;
+        }
+    </style>
+</head>
+<body class="bg-[#1a1a2e] text-[#e0e0e0]">
+
+    <div class="container flex flex-col items-center justify-center p-4">
+        <div class="card w-full max-w-2xl p-8 rounded-2xl">
+            <h1 class="text-3xl font-bold text-center text-[#e94560] mb-6">AI Drum Track Generator</h1>
+            <p class="text-center text-sm mb-6 text-[#b0c4de]">Describe the drum track you need, and our AI will create it for you. You can specify the tempo, style, and mood.</p>
+
+            <form id="drumForm" class="space-y-4">
+                <div class="input-group">
+                    <label for="tempo" class="block mb-2 font-medium">Tempo (BPM)</label>
+                    <input type="number" id="tempo" value="120" min="40" max="240" class="w-full p-3 rounded-md focus:outline-none">
+                </div>
+                <div class="flex space-x-4">
+                    <div class="input-group flex-1">
+                        <label for="timeSigNumerator" class="block mb-2 font-medium">Time Signature (Top)</label>
+                        <input type="number" id="timeSigNumerator" value="4" min="1" max="16" class="w-full p-3 rounded-md focus:outline-none">
+                    </div>
+                    <div class="input-group flex-1">
+                        <label for="timeSigDenominator" class="block mb-2 font-medium">Time Signature (Bottom)</label>
+                        <input type="number" id="timeSigDenominator" value="4" min="1" max="16" class="w-full p-3 rounded-md focus:outline-none">
+                    </div>
+                </div>
+                <div class="input-group">
+                    <label for="numMeasures" class="block mb-2 font-medium">Number of Measures (max. 64)</label>
+                    <input type="number" id="numMeasures" value="4" min="1" max="64" class="w-full p-3 rounded-md focus:outline-none">
+                </div>
+                <div class="input-group">
+                    <label for="style" class="block mb-2 font-medium">Musical Style & Mood</label>
+                    <input type="text" id="style" placeholder="e.g., Chill Lo-Fi, Energetic Rock, Groovy Funk" class="w-full p-3 rounded-md focus:outline-none">
+                </div>
+                <div class="input-group">
+                    <label for="sounds" class="block mb-2 font-medium">Drum Sounds</label>
+                    <input type="text" id="sounds" placeholder="e.g., Electronic, Acoustic, Vintage, or specific sounds like kick, snare, hi-hat, crash, clap, open-hi-hat" class="w-full p-3 rounded-md focus:outline-none">
+                </div>
+                <div class="input-group">
+                    <label for="guidance" class="block mb-2 font-medium">Song Guidance</label>
+                    <textarea id="guidance" rows="4" placeholder="e.g., A simple 4-to-the-floor beat with a prominent snare on the 2 and 4. Add a crash cymbal at the end of the 8th bar." class="w-full p-3 rounded-md focus:outline-none"></textarea>
+                </div>
+
+                <button type="submit" id="generateBtn" class="btn w-full py-3 rounded-md font-bold text-white uppercase tracking-wider focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#e94560]">
+                    Generate Drum Track
+                </button>
+            </form>
+
+            <div id="results" class="mt-8 hidden">
+                <div class="audio-controls p-4 rounded-md flex flex-col items-center justify-between space-y-4 md:space-y-0">
+                    <h2 class="text-xl font-bold text-white">Your Drum Track</h2>
+                    <div class="w-full flex justify-center items-center space-x-4">
+                        <button id="playBtn" class="bg-transparent text-white focus:outline-none">
+                            <i class="fas fa-play icon"></i>
+                        </button>
+                        <button id="stopBtn" class="bg-transparent text-white focus:outline-none">
+                            <i class="fas fa-stop icon"></i>
+                        </button>
+                        <button id="exportBtn" class="btn px-6 py-2 rounded-md font-bold text-white uppercase tracking-wider text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-[#e94560]">
+                            Export to MIDI
+                        </button>
+                    </div>
+                </div>
+
+                <div id="pattern-visualizer" class="mt-4 p-4 rounded-md border border-[#3c4172] bg-[#282c5a] overflow-hidden">
+                    <h3 class="text-md font-bold mb-2 text-[#b0c4de]">Current Measure</h3>
+                    <div id="visualizer-grid" class="flex items-center justify-between space-x-1">
+                        <!-- Visualizer will be populated here by JavaScript -->
+                    </div>
+                    <div id="currentBeat" class="text-center mt-2 text-white"></div>
+                </div>
+
+                <div id="jsonOutput" class="mt-4 p-4 rounded-md border border-[#3c4172] bg-[#282c5a] hidden overflow-auto">
+                    <h3 class="text-md font-bold mb-2 text-[#b0c4de]">Generated JSON</h3>
+                    <pre id="jsonContent" class="text-sm font-mono text-gray-300 whitespace-pre-wrap"></pre>
+                </div>
+            </div>
+
+            <div id="messageBox" class="mt-6 p-4 rounded-md text-center hidden"></div>
+        </div>
+    </div>
+
+    <script type="module">
+        // Global variables for Firebase configuration. These are provided by the canvas environment.
+        const appId = typeof __app_id !== 'undefined' ? __app_id : 'default-app-id';
+        const firebaseConfig = typeof __firebase_config !== 'undefined' ? JSON.parse(__firebase_config) : {};
+        const initialAuthToken = typeof __initial_auth_token !== 'undefined' ? __initial_auth_token : '';
+        console.log("App ID:", appId);
+
+        // --- Web Audio API & Drum Machine Logic ---
+        let audioContext;
+        let audioScheduled;
+        let drumSounds = {};
+        let pattern = [];
+        let isPlaying = false;
+        let currentStep = 0;
+        
+        const tempoInput = document.getElementById('tempo');
+        const playBtn = document.getElementById('playBtn');
+        const stopBtn = document.getElementById('stopBtn');
+        const exportBtn = document.getElementById('exportBtn');
+        const visualizerGrid = document.getElementById('visualizer-grid');
+        const currentBeatText = document.getElementById('currentBeat');
+        
+        const timeSigNumerator = document.getElementById('timeSigNumerator');
+        const timeSigDenominator = document.getElementById('timeSigDenominator');
+        const numMeasures = document.getElementById('numMeasures');
+
+        async function setupAudioContext() {
+            if (!audioContext) {
+                audioContext = new (window.AudioContext || window.webkitAudioContext)();
+                await loadDrumSounds();
+            }
+        }
+
+        async function loadDrumSounds() {
+            // Generate simple procedural drum sounds
+            drumSounds = {
+                'kick': () => {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    osc.type = 'sine';
+                    osc.frequency.setValueAtTime(150, audioContext.currentTime);
+                    osc.frequency.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.15);
+                    gain.gain.setValueAtTime(1, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2);
+                    osc.connect(gain);
+                    gain.connect(audioContext.destination);
+                    osc.start(audioContext.currentTime);
+                    osc.stop(audioContext.currentTime + 0.2);
+                },
+                'snare': () => {
+                    const gain = audioContext.createGain();
+                    gain.gain.setValueAtTime(1, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.01, audioContext.currentTime + 0.1);
+                    
+                    const noise = audioContext.createBufferSource();
+                    const bufferSize = audioContext.sampleRate * 2;
+                    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                    const output = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+                    noise.buffer = buffer;
+                    noise.connect(gain);
+                    
+                    const filter = audioContext.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.setValueAtTime(1000, audioContext.currentTime);
+                    gain.connect(filter);
+                    filter.connect(audioContext.destination);
+                    
+                    noise.start();
+                    noise.stop(audioContext.currentTime + 0.1);
+                },
+                'hi-hat': () => {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    const filter = audioContext.createBiquadFilter();
+                    
+                    const real = new Float32Array([0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
+                    const imag = new Float32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+                    const wave = audioContext.createPeriodicWave(real, imag);
+
+                    osc.setPeriodicWave(wave);
+                    osc.frequency.value = 1500;
+                    
+                    filter.type = 'bandpass';
+                    filter.frequency.value = 8000;
+                    filter.Q.value = 0.5;
+
+                    gain.gain.setValueAtTime(1, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.05);
+                    
+                    osc.connect(gain);
+                    gain.connect(filter);
+                    filter.connect(audioContext.destination);
+
+                    osc.start(audioContext.currentTime);
+                    osc.stop(audioContext.currentTime + 0.05);
+                },
+                'open-hi-hat': () => {
+                    const osc = audioContext.createOscillator();
+                    const gain = audioContext.createGain();
+                    const filter = audioContext.createBiquadFilter();
+                    
+                    const real = new Float32Array([0, 0, 0, 0, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5, 0.5]);
+                    const imag = new Float32Array([0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]);
+                    const wave = audioContext.createPeriodicWave(real, imag);
+
+                    osc.setPeriodicWave(wave);
+                    osc.frequency.value = 1500;
+                    
+                    filter.type = 'bandpass';
+                    filter.frequency.value = 8000;
+                    filter.Q.value = 0.5;
+
+                    gain.gain.setValueAtTime(1, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.2); // Longer decay
+                    
+                    osc.connect(gain);
+                    gain.connect(filter);
+                    filter.connect(audioContext.destination);
+
+                    osc.start(audioContext.currentTime);
+                    osc.stop(audioContext.currentTime + 0.2);
+                },
+                'clap': () => {
+                    const noise = audioContext.createBufferSource();
+                    const bufferSize = audioContext.sampleRate * 2;
+                    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                    const output = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+                    noise.buffer = buffer;
+
+                    const gain = audioContext.createGain();
+                    gain.gain.setValueAtTime(1, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 0.1);
+                    
+                    const filter = audioContext.createBiquadFilter();
+                    filter.type = 'bandpass';
+                    filter.frequency.setValueAtTime(2000, audioContext.currentTime);
+                    filter.Q.value = 1.0;
+                    
+                    noise.connect(gain);
+                    gain.connect(filter);
+                    filter.connect(audioContext.destination);
+
+                    noise.start();
+                    noise.stop(audioContext.currentTime + 0.1);
+                },
+                'crash': () => {
+                    const noise = audioContext.createBufferSource();
+                    const bufferSize = audioContext.sampleRate * 2;
+                    const buffer = audioContext.createBuffer(1, bufferSize, audioContext.sampleRate);
+                    const output = buffer.getChannelData(0);
+                    for (let i = 0; i < bufferSize; i++) {
+                        output[i] = Math.random() * 2 - 1;
+                    }
+                    noise.buffer = buffer;
+                    
+                    const gain = audioContext.createGain();
+                    gain.gain.setValueAtTime(1, audioContext.currentTime);
+                    gain.gain.exponentialRampToValueAtTime(0.001, audioContext.currentTime + 2);
+
+                    const filter = audioContext.createBiquadFilter();
+                    filter.type = 'highpass';
+                    filter.frequency.value = 5000;
+                    
+                    noise.connect(filter);
+                    filter.connect(gain);
+                    gain.connect(audioContext.destination);
+                    
+                    noise.start();
+                    noise.stop(audioContext.currentTime + 2);
+                },
+            };
+        }
+        
+        function updateVisualizer(beatInMeasure) {
+            const cells = visualizerGrid.children;
+            for (let i = 0; i < cells.length; i++) {
+                cells[i].classList.remove('active');
+            }
+            if (beatInMeasure >= 0 && beatInMeasure < cells.length) {
+                cells[beatInMeasure].classList.add('active');
+            }
+        }
+
+        function playPattern() {
+            if (isPlaying && pattern.length > 0) {
+                const tempo = parseInt(tempoInput.value, 10);
+                const interval = 60 / tempo / 4 * 1000; // 16th note interval in milliseconds
+                
+                playBtn.innerHTML = '<i class="fas fa-pause icon"></i>';
+                
+                let lastTime = audioContext.currentTime;
+                
+                const scheduler = () => {
+                    const currentTime = audioContext.currentTime;
+                    const scheduledTime = lastTime + (interval / 1000);
+
+                    if (currentTime > scheduledTime - 0.05) { // Schedule a little in advance
+                        const stepIndex = currentStep % pattern.length;
+                        const stepsPerMeasure = parseInt(timeSigNumerator.value) * (16 / parseInt(timeSigDenominator.value));
+                        const beatInMeasure = stepIndex % stepsPerMeasure;
+                        
+                        // Play sounds for the current step
+                        const beatEvents = pattern[stepIndex];
+                        if (beatEvents && beatEvents.length > 0) {
+                            beatEvents.forEach(soundName => {
+                                if (drumSounds[soundName]) {
+                                    drumSounds[soundName]();
+                                }
+                            });
+                        }
+
+                        updateVisualizer(beatInMeasure);
+                        
+                        const currentMeasure = Math.floor(currentStep / stepsPerMeasure) + 1;
+                        const currentBeat = Math.floor(stepIndex / 4) + 1;
+                        const currentSubdivision = (stepIndex % 4) + 1;
+
+                        currentBeatText.textContent = `Measure: ${currentMeasure} | Beat: ${currentBeat} | Subdivision: ${currentSubdivision}`;
+                        
+                        currentStep++;
+                        
+                        if (currentStep >= pattern.length) {
+                             currentStep = 0;
+                        }
+                        
+                        lastTime = scheduledTime;
+                        audioScheduled = setTimeout(scheduler, interval * 0.9);
+                    } else {
+                         audioScheduled = setTimeout(scheduler, 5); // Check again soon
+                    }
+                };
+                
+                scheduler();
+            } else {
+                playBtn.innerHTML = '<i class="fas fa-play icon"></i>';
+                clearTimeout(audioScheduled);
+            }
+        }
+        
+        playBtn.addEventListener('click', () => {
+            if (pattern.length === 0) {
+                showMessage("Please generate a drum track first!", "bg-red-500");
+                return;
+            }
+            isPlaying = !isPlaying;
+            if (isPlaying) {
+                setupAudioContext();
+                playPattern();
+            } else {
+                stopPlaying();
+            }
+        });
+
+        stopBtn.addEventListener('click', () => {
+            stopPlaying();
+        });
+
+        function stopPlaying() {
+            isPlaying = false;
+            currentStep = 0;
+            updateVisualizer(-1);
+            currentBeatText.textContent = '';
+            clearTimeout(audioScheduled);
+            playBtn.innerHTML = '<i class="fas fa-play icon"></i>';
+        }
+
+        // --- MIDI Export Logic ---
+
+        // General MIDI Percussion Map
+        const drumMap = {
+            'kick': 36, // Bass Drum 1
+            'snare': 38, // Acoustic Snare
+            'hi-hat': 42, // Closed Hi-Hat
+            'open-hi-hat': 46, // Open Hi-Hat
+            'clap': 39, // Hand Clap
+            'crash': 49, // Crash Cymbal 1
+        };
+
+        function writeVarInt(value) {
+            let buffer = [];
+            if (value === 0) return [0];
+            while (value > 0) {
+                let byte = value & 0x7F;
+                if (buffer.length > 0) {
+                    byte |= 0x80;
+                }
+                buffer.unshift(byte);
+                value >>>= 7;
+            }
+            return buffer;
+        }
+
+        function exportMidi() {
+            if (pattern.length === 0) {
+                showMessage("Nothing to export. Please generate a drum track first.", "bg-yellow-500");
+                return;
+            }
+
+            const allEvents = [];
+            const ticksPerBeat = 480; 
+            const noteDuration = ticksPerBeat / 16; // 16th note duration
+
+            for (let i = 0; i < pattern.length; i++) {
+                const absoluteTime = i * (ticksPerBeat / 4);
+                pattern[i].forEach(soundName => {
+                    const note = drumMap[soundName];
+                    if (note) {
+                        allEvents.push({ time: absoluteTime, type: 'on', note: note });
+                        allEvents.push({ time: absoluteTime + noteDuration, type: 'off', note: note });
+                    }
+                });
+            }
+            
+            allEvents.sort((a, b) => a.time - b.time);
+
+            const events = [];
+            let lastEventTime = 0;
+
+            // Tempo meta event
+            const tempo = parseInt(tempoInput.value, 10);
+            const microsPerBeat = Math.floor(60000000 / tempo);
+            events.push(0x00, 0xFF, 0x51, 0x03);
+            events.push((microsPerBeat >> 16) & 0xFF, (microsPerBeat >> 8) & 0xFF, microsPerBeat & 0xFF);
+
+            allEvents.forEach(event => {
+                const deltaTime = event.time - lastEventTime;
+                events.push(...writeVarInt(deltaTime));
+                lastEventTime = event.time;
+
+                if (event.type === 'on') {
+                    events.push(0x99); // Note On channel 10
+                    events.push(event.note);
+                    events.push(100); // Velocity
+                } else if (event.type === 'off') {
+                    events.push(0x89); // Note Off channel 10
+                    events.push(event.note);
+                    events.push(0); // Velocity 0
+                }
+            });
+            
+            // End of track event
+            events.push(...writeVarInt(1));
+            events.push(0xFF, 0x2F, 0x00);
+
+            // Construct MIDI file
+            const trackLength = events.length;
+            const fileLength = 14 + 8 + trackLength;
+            const midiBytes = new Uint8Array(fileLength);
+            const view = new DataView(midiBytes.buffer);
+
+            let offset = 0;
+
+            // MThd Header
+            view.setUint32(offset, 0x4D546864); // 'MThd'
+            offset += 4;
+            view.setUint32(offset, 6); // Header length
+            offset += 4;
+            view.setUint16(offset, 1); // Format (type 1)
+            offset += 2;
+            view.setUint16(offset, 1); // Number of tracks
+            offset += 2;
+            view.setUint16(offset, ticksPerBeat); // Time division
+            offset += 2;
+
+            // MTrk Header
+            view.setUint32(offset, 0x4D54726B); // 'MTrk'
+            offset += 4;
+            view.setUint32(offset, trackLength); // Track length
+            offset += 4;
+
+            // Track events
+            for (let i = 0; i < events.length; i++) {
+                view.setUint8(offset + i, events[i]);
+            }
+
+            const blob = new Blob([midiBytes], { type: 'audio/midi' });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = 'drum_track.mid';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+            
+            showMessage("MIDI file exported!", "bg-green-500");
+        }
+
+        exportBtn.addEventListener('click', exportMidi);
+
+        // --- UI & API Integration Logic ---
+        const drumForm = document.getElementById('drumForm');
+        const generateBtn = document.getElementById('generateBtn');
+        const resultsDiv = document.getElementById('results');
+        const messageBox = document.getElementById('messageBox');
+        
+        function showMessage(message, colorClass) {
+            messageBox.textContent = message;
+            messageBox.className = `mt-6 p-4 rounded-md text-center ${colorClass}`;
+            messageBox.classList.remove('hidden');
+        }
+
+        async function generateDrumPattern(prompt) {
+            const systemPrompt = `You are a music production assistant. Your task is to generate a drum pattern in a JSON format based on the user's request. The pattern should be a continuous sequence representing a full song.
+
+The JSON object should have a single key, "pattern", which is an array of arrays. Each inner array represents a single 16th note step in the song and can contain one or more strings from the following list: "kick", "snare", "hi-hat", "crash", "clap", "open-hi-hat". The total length of the pattern must match the requested number of measures and time signature. For example, a 4-measure song in 4/4 time would have 64 steps (4 measures * 4 beats * 4 subdivisions). A 2-measure song in 5/4 time would have 40 steps (2 measures * 5 beats * 4 subdivisions).
+
+Only return the JSON object. Do not include any additional text, markdown, or code blocks.`;
+            
+            // PASTE YOUR GOOGLE API KEY HERE (after the equal sign and inside the quotes)
+            const apiKey = "AIzaSyAwVPzb89j1qL-td8v3xtIcLii5vD_ijI8";
+            if (!apiKey) {
+                showMessage("API key is missing. Please add your key to the code to use the AI.", "bg-red-500");
+                generateBtn.textContent = 'Generate Drum Track';
+                generateBtn.disabled = false;
+                return null;
+            }
+
+            const payload = {
+                contents: [{ parts: [{ text: prompt }] }],
+                systemInstruction: { parts: [{ text: systemPrompt }] },
+                generationConfig: {
+                    responseMimeType: "application/json",
+                    responseSchema: {
+                        type: "OBJECT",
+                        properties: {
+                            "pattern": {
+                                "type": "ARRAY",
+                                "items": {
+                                    "type": "ARRAY",
+                                    "items": {
+                                        "type": "STRING",
+                                        "enum": ["kick", "snare", "hi-hat", "crash", "clap", "open-hi-hat"]
+                                    },
+                                    "minItems": 0,
+                                    "maxItems": 6
+                                }
+                            }
+                        }
+                    }
+                }
+            };
+            
+            let retryCount = 0;
+            const maxRetries = 3;
+            const delay = (ms) => new Promise(res => setTimeout(res, ms));
+
+            const apiUrl = `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash-preview-05-20:generateContent?key=${apiKey}`;
+
+            while (retryCount < maxRetries) {
+                try {
+                    const response = await fetch(apiUrl, {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify(payload)
+                    });
+
+                    if (response.status === 429) {
+                        console.warn("API rate limit exceeded. Retrying...");
+                        await delay(Math.pow(2, retryCount) * 1000);
+                        retryCount++;
+                        continue;
+                    }
+
+                    if (!response.ok) {
+                        throw new Error(`HTTP error! status: ${response.status}`);
+                    }
+
+                    const result = await response.json();
+                    
+                    if (result.candidates && result.candidates.length > 0 && result.candidates[0].content && result.candidates[0].content.parts && result.candidates[0].content.parts.length > 0) {
+                        const jsonText = result.candidates[0].content.parts[0].text;
+                        try {
+                            return JSON.parse(jsonText);
+                        } catch (parseError) {
+                            console.error('Failed to parse JSON from AI response. Raw text:', jsonText);
+                            // This will cause the function to return null, triggering the user-facing message.
+                            return null;
+                        }
+                    } else {
+                        throw new Error("Invalid response format from API.");
+                    }
+                } catch (error) {
+                    console.error('API call failed:', error);
+                    showMessage("Failed to generate drum track. Please try again.", "bg-red-500");
+                    return null;
+                }
+            }
+            showMessage("Failed to generate drum track after multiple retries. Please check your network.", "bg-red-500");
+            return null;
+        }
+
+        drumForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            stopPlaying();
+
+            generateBtn.textContent = 'Generating...';
+            generateBtn.disabled = true;
+            resultsDiv.classList.add('hidden');
+            messageBox.classList.add('hidden');
+            
+            const tempo = document.getElementById('tempo').value;
+            const style = document.getElementById('style').value;
+            const sounds = document.getElementById('sounds').value;
+            const guidance = document.getElementById('guidance').value;
+            const timeSigNumerator = document.getElementById('timeSigNumerator').value;
+            const timeSigDenominator = document.getElementById('timeSigDenominator').value;
+            const numMeasures = document.getElementById('numMeasures').value;
+
+            const totalSteps = numMeasures * timeSigNumerator * (16 / timeSigDenominator);
+            if (totalSteps <= 0 || !Number.isInteger(totalSteps)) {
+                showMessage("Invalid time signature or number of measures. Please ensure the total number of steps is a positive integer.", "bg-red-500");
+                generateBtn.textContent = 'Generate Drum Track';
+                generateBtn.disabled = false;
+                return;
+            }
+
+            const prompt = `Generate a drum pattern for a song of ${numMeasures} measures in ${timeSigNumerator}/${timeSigDenominator} time. The pattern MUST be exactly ${totalSteps} steps long. Use the drum sounds kick, snare, hi-hat, open-hi-hat, clap, and crash to emulate a ${style} style. Use the following guidance: ${guidance}.`;
+
+            const jsonResponse = await generateDrumPattern(prompt);
+
+            generateBtn.textContent = 'Generate Drum Track';
+            generateBtn.disabled = false;
+
+            if (jsonResponse && jsonResponse.pattern) {
+                // Check if the generated pattern matches the requested length
+                if (jsonResponse.pattern.length !== totalSteps) {
+                     showMessage(`The AI generated a pattern with an unexpected length (${jsonResponse.pattern.length} steps). The expected length was ${totalSteps} steps.`, "bg-yellow-500");
+                }
+                pattern = jsonResponse.pattern;
+                resultsDiv.classList.remove('hidden');
+
+                // Clear and rebuild the visualizer
+                visualizerGrid.innerHTML = '';
+                const stepsPerMeasure = parseInt(timeSigNumerator.value) * (16 / parseInt(timeSigDenominator.value));
+                for (let i = 0; i < stepsPerMeasure; i++) {
+                    const cell = document.createElement('div');
+                    cell.classList.add('grid-cell');
+                    visualizerGrid.appendChild(cell);
+                }
+                
+                // Show generated JSON for debugging
+                const jsonContentElement = document.getElementById('jsonContent');
+                jsonContentElement.textContent = JSON.stringify(jsonResponse, null, 2);
+                document.getElementById('jsonOutput').classList.remove('hidden');
+                
+            } else {
+                showMessage("The AI was unable to create a valid pattern. Please try a different prompt.", "bg-red-500");
+            }
+        });
+    </script>
+</body>
+</html>
